@@ -47,8 +47,8 @@
     "pages": [],
     "nativeLanguage": "en",
     "entities": ["BankAccount", "Label", "Operation"],
-    "herokuAppName": "protected-bastion-12594",
-    "herokuDeployType": "git",
+    "herokuAppName": "bob",
+    "herokuDeployType": "jar",
     "herokuJavaVersion": "11"
   }
 }
