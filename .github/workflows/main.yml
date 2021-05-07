@@ -14,19 +14,19 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Cache Node module
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 14.16.1
+      - name: Cache node module
         uses: actions/cache@v2
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-${{ hashFiles('**/package.json') }}
-      - name: Cache Test Result Front
+      - name: Cache test Result Front
         uses: actions/cache@v2
         with:
           path: '**/target/test-results'
           key: ${{ runner.os }}-test-front-${{ github.run_id }}
-      - uses: actions/setup-node@v1
-        with:
-          node-version: 14.16.1
      
       - name: Install node.js packages
         run: npm install
@@ -40,11 +40,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Cache Test Result
-        uses: actions/cache@v2
+      - uses: actions/setup-java@v1
         with:
-          path: '**/target'
-          key: ${{ runner.os }}-test-back-${{ github.run_id }}
+          java-version: '11.x'
       - name: Cache Maven packages
         uses: actions/cache@v2
         with:
@@ -52,9 +50,11 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      - uses: actions/setup-java@v1
+      - name: Cache Test Back Result
+        uses: actions/cache@v2
         with:
-          java-version: '11.x'
+          path: '**/target'
+          key: ${{ runner.os }}-test-back-${{ github.run_id }}
 
       - name: Run backend test
         run: |
@@ -76,12 +76,12 @@ jobs:
         with:
           node-version: 14.16.1
       
-      
       - name: Cache Node module
         uses: actions/cache@v2
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-${{ hashFiles('**/package.json') }}
+
       - name: Cache Maven packages
         uses: actions/cache@v2
         with:
@@ -107,24 +107,51 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-   
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 14.16.1
+      - uses: actions/setup-java@v1
+        with:
+          java-version: '11.x'
+
+
+      - name: Cache Node module
+        uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/package.json') }}
+
+      - name: Cache Maven packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
       - name: Cache Test Back Result
         uses: actions/cache@v2
         with:
           path: '**/target'
           key: ${{ runner.os }}-test-back-${{ github.run_id }}
+
       - name: Cache Test Front Result
         uses: actions/cache@v2
         with:
           path: '**/target/test-results'
           key: ${{ runner.os }}-test-front-${{ github.run_id }}
       
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+      - name: Build and analyze
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
 
   deploy:
      # The type of runner that the job will run on
@@ -135,24 +162,25 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: Cache Node module
-        uses: actions/cache@v2
-        with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/package.json') }}
-      - name: Cache Maven packages
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
-
       - uses: actions/setup-node@v1
         with:
           node-version: 14.16.1
       - uses: actions/setup-java@v1
         with:
           java-version: '11.x'
+
+      - name: Cache Node module
+        uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/package.json') }}
+
+      - name: Cache Maven packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
 
       - name: Deploy to Heroku
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
