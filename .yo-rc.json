@@ -47,7 +47,7 @@
     "pages": [],
     "nativeLanguage": "en",
     "entities": ["BankAccount", "Label", "Operation"],
-    "herokuAppName": "bob",
+    "herokuAppName": "pour-les-devs-ops",
     "herokuDeployType": "jar",
     "herokuJavaVersion": "11"
   }
