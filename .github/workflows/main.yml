@@ -35,6 +35,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: Cache Maven packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
 
       - uses: actions/setup-java@v1
         with:
@@ -53,19 +59,26 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      
-      - uses: actions/cache@v2
-        with:
-          path: '**/node_modules'
-          key: ${{ runner.os }}-modules-${{ hashFiles('**/package.json') }}
       - uses: actions/setup-java@v1
         with:
           java-version: '11.x'
-
       - uses: actions/setup-node@v1
         with:
           node-version: 14.16.1
       
+      
+      - name: Cache Node module
+        uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/package.json') }}
+      - name: Cache Maven packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
       - name: 'E2E: Package'
         run: ./mvnw -ntp verify -DskipTests --batch-mode "-Pprod" "-Pe2e" "-Denforcer.skip=true"*
       - name: 'E2E: Prepare'
@@ -75,17 +88,60 @@ jobs:
       - name: 'E2E: Teardown'
         run: npm run ci:e2e:teardown
 
-  deploy:
-     # The type of runner that the job will run on
+  sonar:
+    # The type of runner that the job will run on
     runs-on: ubuntu-latest
-    needs: test-e2e
+    needs: [test-e2e]
 
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - uses: actions/cache@v2
         with:
           path: '**/node_modules'
           key: ${{ runner.os }}-modules-${{ hashFiles('**/package.json') }}
+      - uses: actions/setup-java@v1
+        with:
+          java-version: '11.x'
+
+      - name: Cache SonarCloud packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+      - name: Cache Maven packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: Build and analyze
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+
+  deploy:
+     # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    needs: sonar
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Cache Node module
+        uses: actions/cache@v2
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-modules-${{ hashFiles('**/package.json') }}
+      - name: Cache Maven packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
       - uses: actions/setup-node@v1
         with:
           node-version: 14.16.1
